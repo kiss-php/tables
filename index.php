@@ -11,7 +11,6 @@ $_ENV['DB_PORT']='5555';
 $_ENV['DB_LITLE_TYPE']='sqlite';
 $_ENV['DB_LITLE_PATH']='db/tablesTest.db';
 
-use Kiss\Tables\PDOhandler;
 use Kiss\Tables\TablesManager;
 TablesManager::setFolder('Tables');
 

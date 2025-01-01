@@ -52,6 +52,7 @@ class TrueTablesManager {
     }
 
     public function get(string $tableName, array $search =[], int $limit=0, string $flag='') {
+        if(!isset($this->tables[$tableName])) throw new Exception("The table you want to create is not defined in the Tables folder (or tables folder is not defined)");
         try {
             $sql='';
             $pdo=Connections::get($flag);
