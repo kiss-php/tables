@@ -1,0 +1,17 @@
+{
+    "name": "agrandesr/tables",
+    "description": "Kiss ORM for php.",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Kiss\\Tables\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "agrandesr",
+            "email": "agrandesr@gmail.com"
+        }
+    ],
+    "require": {}
+}
