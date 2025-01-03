@@ -1,1 +1,2 @@
-name[varchar(255)]:null:auto_increment
+name[varchar(255)]:null
+nameVerified[bool]:null:auto_increment

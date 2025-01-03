@@ -122,7 +122,7 @@ class TrueTablesManager {
 
             $fieldName=trim($rawField);
             if($fieldName=='id') continue;
-
+            else $fieldName = $this->camelToSnake($fieldName);
             $fields[$fieldName]=['type'=>$type];
             if(isset($options)) {
                 //$fields[$fieldName]['primary']=in_array('primary',$options);
@@ -149,6 +149,11 @@ class TrueTablesManager {
 
     public function rollback() {
         echo "\nMassive rollback\n";
+    }
+
+    private function camelToSnake($input) {
+        $snake = preg_replace('/([a-z])([A-Z])/', '$1_$2', $input);
+        return strtolower($snake);
     }
 }
 
