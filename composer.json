@@ -1,5 +1,5 @@
 {
-    "name": "kiss/tables",
+    "name": "kiss-php/tables",
     "description": "Kiss ORM for php.",
     "type": "library",
     "autoload": {
