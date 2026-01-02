@@ -24,6 +24,7 @@ class TrueTablesManager {
      * This functions add all the Tables definitions from a folder. This allow to create Table(Class) with the correct data.
      */
     public function setFolder($path) : bool {
+        //We need to create a cache system that read quickly all the content in tables
         if(is_dir($path)) {
             $dir = opendir($path);
             while(($tableFile = readdir($dir)) !== false) {
@@ -69,6 +70,7 @@ class TrueTablesManager {
             }
     
             $stmt=$pdo->prepare($sql);
+            
             $result = $stmt->execute();
     
             $dataToReturn=[];
@@ -96,9 +98,20 @@ class TrueTablesManager {
     }
 
     private function parseContent($content) {
-        $haveId=false;
+        // TODO: We need to make some cache of this to make the faster... Only reparse went tables have been changed
+        // IMPORTANT - The CACHE file will be created in the tables folder like tables.cache
+        $seedData = [];
+        if (preg_match('/<default>(.*?)<\/default>/s', $content, $matches)) {
+            $csvContent = trim($matches[1]);
+            $rows = explode("\n", $csvContent);
+            foreach ($rows as $row) {
+                if (trim($row) === '') continue;
+                $seedData[] = str_getcsv(trim($row));
+            }
+            $content = str_replace($matches[0], '', $content);
+        }
+
         $lines = explode("\n", $content);
-        
         
         $fields=[
             'id'=>[
@@ -108,47 +121,77 @@ class TrueTablesManager {
                 'increment'=>true
             ]
         ];
-        $types = [];
 
         foreach ($lines as $line) {
             $line=trim($line," \t\n\r");
-            //$line = str_replace([' ','\t','\n','\r'],'',$line);
-            if($line=='') continue;
-            //echo $line . "\n";
-            list($rawField, $rawData) = explode('[', $line);
-            list($type, $rawData) = explode(']',$rawData);
-            if(strpos($rawData,'$')!==false) list($rawData, $relation) = explode('$',$rawData);
-            if(strpos($rawData, ':')!==false) $options = explode(':',$rawData);
+            if($line=='' || $line[0]=='#') continue; // Skip comments and empty lines
 
-            $fieldName=trim($rawField);
+            // Parse: name[type](default):opt1:opt2$relation
+            // 1. Extract name and type: name[type]
+            if (!preg_match('/^([^\[]+)\[([^\]]+)\](.*)$/', $line, $matches)) {
+                continue; // Invalid format
+            }
+
+            $fieldName = trim($matches[1]);
+            $type = trim($matches[2]);
+            $rest = $matches[3];
+
             if($fieldName=='id') continue;
             else $fieldName = $this->camelToSnake($fieldName);
-            $fields[$fieldName]=['type'=>$type];
-            if(isset($options)) {
-                //$fields[$fieldName]['primary']=in_array('primary',$options);
-                $fields[$fieldName]['null']=in_array('null',$options);
-                $fields[$fieldName]['unique']=in_array('unique',$options);
-                $fields[$fieldName]['binary']=in_array('binary',$options);
-                $fields[$fieldName]['unsigned']=in_array('unsigned',$options);
-                $fields[$fieldName]['zero']=in_array('zero',$options);
-                $fields[$fieldName]['increment']=in_array('increment',$options);
-                $fields[$fieldName]['generated(default)']=in_array('generated(default)',$options);
-                if($relation??false) {
-                    list($table, $field)=explode('.',$relation);
-                    $fields[$fieldName]['related']=[
-                        'table'=>$table,
-                        'field'=>$field,
-                        'from'=>$fieldName
-                    ];
+
+            $fields[$fieldName] = ['type' => $type];
+
+            // 2. Extract Default Value: (value)
+            // It should be immediately after type, or before other options?
+            // Spec says: isActive[boolean](false)
+            if (preg_match('/^\(([^)]+)\)(.*)$/', $rest, $defMatches)) {
+                $fields[$fieldName]['default'] = $defMatches[1];
+                $rest = $defMatches[2];
+            }
+
+            // 3. Extract Relation: $Table.field
+            // Spec says: userId[int]$User.id (at the end usually, or anywhere?)
+            // Assuming end or part of options logic.
+            // Let's check for $
+            if (strpos($rest, '$') !== false) {
+                list($rest, $relation) = explode('$', $rest, 2);
+                list($table, $field) = explode('.', $relation);
+                $fields[$fieldName]['related'] = [
+                    'table' => $table,
+                    'field' => $field,
+                    'from'  => $fieldName
+                ];
+            }
+
+            // 4. Extract Modifiers: :opt1:opt2
+            if (strpos($rest, ':') !== false) {
+                $options = explode(':', $rest);
+                // Remove empty first element if line started with :
+                $options = array_filter($options, fn($val) => !empty($val));
+                
+                $fields[$fieldName]['null'] = in_array('null', $options);
+                $fields[$fieldName]['unique'] = in_array('unique', $options);
+                $fields[$fieldName]['binary'] = in_array('binary', $options);
+                $fields[$fieldName]['unsigned'] = in_array('unsigned', $options);
+                $fields[$fieldName]['zero'] = in_array('zero', $options);
+                $fields[$fieldName]['increment'] = in_array('increment', $options);
+                
+                // Keep increment logic if type is int?
+                if ($fields[$fieldName]['increment']) {
+                     // Usually implies primary or unique, but let's just mark it.
                 }
             }
+        }
+
+        if (!empty($seedData)) {
+            $fields['__seed_data'] = $seedData;
         }
 
         return $fields;
     }
 
     public function rollback() {
-        echo "\nMassive rollback\n";
+        //@TODO: Massive rollback
     }
 
     private function camelToSnake($input) {

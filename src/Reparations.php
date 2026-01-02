@@ -39,6 +39,22 @@ class Reparations {
                 $row->addColumn($columnName, $flag);
 
                 return $row->$retry($flag);
+            case '23000': 
+                // Integrity Constrain Violation:
+                // 1062 Duplicate entry: We can try to update the row or ignore
+                // 1452 Foreign key constraint fails: We might need to create the parent row first
+                // 1048 Column cannot be null: We can try to alter table to make it nullable or set a default
+                break;
+            case 'HY000':
+                // General Error:
+                // 1364 Field doesn't have a default value: Alter table to add default or make nullable
+                // 1265 Data truncated: Alter table to increase column size (varchar, int, etc)
+                break;
+            case '42000':
+                // Syntax error or access violation
+                // 1075 Incorrect table definition (auto column must be key): Add primary key
+                // 1071 Specified key was too long: Reduce length of column or change encoding
+                break;
         }
     }
     static function sqliteErrorHandler($error, Row &$row, string $retry, string $flag) {

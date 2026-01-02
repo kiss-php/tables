@@ -101,21 +101,24 @@ class Row {
                 $row = TablesManager::getById($this->tableName, $this->id, $flag);
                 $this->rollbacks[$flag]=$row->data();
             }
-    
+
             $pdo = Connections::get($flag ? $flag : $this->flag);
 
             $stmt=$pdo->prepare($sql);
+            History::save("SQL || $sql || ".json_encode($this->fieldsData));
             $stmt->execute($this->fieldsData);
-    
+
             if(!$this->id) $this->id=$pdo->lastInsertId();
-    
+
             $this->deleted=false;
             return true;
         } catch (PDOException $pdoException) {
+            History::save("PDOException::".$pdoException->getMessage());
             $ok = Reparations::errorHandler($pdoException, $this, 'persist', $flag ? $flag : $this->flag);
             if(!$ok) throw $pdoException;
         }
     }
+
 
     /**
      * Delete the row DELETE
@@ -131,6 +134,7 @@ class Row {
 
         $pdo = Connections::get($flag ? $flag : $this->flag);
         $stmt=$pdo->prepare($sql);
+        History::save("SQL || $sql || ".json_encode(['id'=>$this->id]));
         $stmt->execute(['id'=>$this->id]);
 
         $this->deleted=true;
@@ -141,20 +145,43 @@ class Row {
      * Return the Row to the initial state, if doesn't exist it is deleted
      */
     public function reset() {
-        foreach ($this->rollbacks as $flag=>$originalData) {
-            if(empty($originalData)) {
-                //We delete because there is not content
-                if($this->deleted) return true; //Not is required to delete, all is deleted
-                $sql='DELETE FROM ' . $this->tableName . " WHERE id=:id LIMIT 1;";
-                $pdo = Connections::get($flag);
-                $stmt=$pdo->prepare($sql);
-                $stmt->execute(['id'=>$originalData['id']]);
+        foreach ($this->rollbacks as $flag => $originalData) {
+            $pdo = Connections::get($flag);
+
+            if (empty($originalData)) {
+                // If there is no content, delete the row
+                if ($this->deleted) return true; // Already deleted, no further action needed
+                $sql = 'DELETE FROM ' . $this->tableName . " WHERE id=:id LIMIT 1;";
+                $stmt = $ ->prepare($sql);
+                $stmt->execute(['id' => $this->id]);
+                $this->deleted = true;
             } elseif ($this->deleted) {
-                //We insert again with the same ID
+                // If the row was deleted, re-insert it with the original data
+                $fieldsString = implode(', ', array_keys($originalData));
+                $valuesString = ':' . implode(', :', array_keys($originalData));
+                $sql = 'INSERT INTO ' . $this->tableName . " ($fieldsString) VALUES ($valuesString);";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($originalData);
+                $this->deleted = false;
+                $this->fieldsData = $originalData;
             } else {
-                //We update to the original value
+                // If the row exists, update it to the original values
+                $sql = 'UPDATE ' . $this->tableName . ' SET ';
+                $first = true;
+                foreach ($originalData as $fieldName => $value) {
+                    if ($fieldName === 'id') continue;
+                    if (!$first) $sql .= ', ';
+                    $sql .= "$fieldName = :$fieldName";
+                    $first = false;
+                }
+                $sql .= " WHERE id = :id LIMIT 1;";
+                $originalData['id'] = $this->id; // Ensure the ID is included in the parameters
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($originalData);
+                $this->fieldsData = $originalData;
             }
         }
+        return true;
     }
 
     public function create($flag=false) {
@@ -173,22 +200,23 @@ class Row {
                 }
                 $sql.=$fieldName .' '. $fieldInfo['type'];
                 $sql.=($fieldInfo['null'] ?? false) ? ' NULL ' : ' NOT NULL ';
-                $sql.=(
-                    ($fieldInfo['increment']??false) &&
-                    strtolower($fieldInfo['type'])==='int' //AUTO_INCREMENT IS ONLY AVAILABLE FOR INT 
-                    && !in_array($conType,['sqlite'])) ? //SQLLITE NOT ACCEPT AUTO_INCREMENTE (IS DEFAULT IN PRIMARY KEYS)
-                        ' AUTO_INCREMENT '
-                        :'';
+                if ($fieldInfo['unsigned']??false) $sql.=' UNSIGNED ';
+                if ($fieldInfo['zero']??false) $sql.=' ZEROFILL ';
+                if ($fieldInfo['binary']??false) $sql.=' BINARY ';
+
+                if (isset($fieldInfo['default'])) {
+                    $defVal = $fieldInfo['default'];
+                    if (strtolower($defVal) === 'true') $defVal = 1;
+                    elseif (strtolower($defVal) === 'false') $defVal = 0;
+                    elseif (strtolower($defVal) === 'null') $defVal = 'NULL';
+                    elseif (!is_numeric($defVal)) $defVal = "'$defVal'";
+                    $sql.=" DEFAULT $defVal ";
+                }
 
                 if ($fieldInfo['unique']??false) $uniques[]=$fieldName;
                 if ($fieldInfo['related']??false) $foreigns[$fieldName] = $fieldInfo['related'];
 
-                // $fields[$fieldName]['binary']=in_array('binary',$options);
-                // $fields[$fieldName]['unsigned']=in_array('unsigned',$options);
-                // $fields[$fieldName]['zero']=in_array('zero',$options);
-                // $fields[$fieldName]['increment']=in_array('increment',$options);
-                // $fields[$fieldName]['generated(default)']=in_array('generated(default)',$options);
-                $sql.=', ';//TODO
+                $sql.=', ';
             }
             $sql = substr($sql, 0, -2); //We remove last ','
 

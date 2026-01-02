@@ -1,2 +1,14 @@
-name[varchar(255)]:null
-nameVerified[bool]:null:auto_increment
+user[varchar(90)]
+userComplicatedWordTest[varchar(90)]
+mail[varchar(45)]
+mailVerified[boolean](false)
+pass[longtext]
+name[longtext]
+nameVerified[varchar]
+phone[varchar(25)]:null
+phoneVerified[boolean]:null
+otpKey[varchar(255)]:null
+2fa[boolean]:null(false)
+birthdate[DATE]:null
+userImages@UserImages.user_id //@ get ALL
+userProfile$UserProfile.user_id //$ get ONE

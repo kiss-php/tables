@@ -1,0 +1,16 @@
+simpleString[varchar(255)]
+simpleInt[int]
+simpleBool[boolean]
+simpleText[longtext]
+simpleDate[date]
+nullableCol[varchar(50)]:null
+uniqueCol[varchar(50)]:unique
+unsignedInt[int]:unsigned
+zeroFillInt[int]:zero
+autoInc[int]:increment
+binaryData[varchar(10)]:binary
+withDefault[boolean](false)
+userId[int]$User.id
+complex[int]:unsigned:null:unique
+complexWithDefault[varchar(20)]:unsigned:null:unique|defaultValue
+referenceToOther@Example2.example_id

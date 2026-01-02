@@ -21,6 +21,7 @@ $Animal = TablesManager::new('Animals');
 $Animal->setName('Weird duck');
 $Animal->setInteligence(1000);
 $Animal->setGastronomy('frutarian');
+$Animal->setBoolean(false);
 $Animal->persist();
 
 $Users = TablesManager::get('User',['name'=>'caat']);
