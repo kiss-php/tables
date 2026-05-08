@@ -1,6 +1,7 @@
 <?php
 namespace Kiss\Tables;
 
+use Exception;
 use Kiss\Tables\Connections;
 use Kiss\Tables\Row;
 
@@ -30,7 +31,7 @@ class Reparations {
 
                 return $row->$retry($flag);
             case '42S22': //Column not found
-                if($retry=='newTableField') return false;
+                if($retry=='addColumn') return false;
                 
                 preg_match("/Unknown column '(.*?)' in /", $errorMsg, $matches);
                 if (!isset($matches[1])) throw $error; //If we can't identify column we fail
@@ -68,7 +69,7 @@ class Reparations {
 
             return $row->$retry($flag);
         } elseif(strpos($errorMsg, 'has no column named') !== false) {
-            if($retry=='newTableField') return false;
+            if($retry=='addColumn') return false;
 
             preg_match("/has no column named (\w+)/", $errorMsg, $matches);
             if (!isset($matches[1])) throw $error; //If we can't identify column we fail
