@@ -1,0 +1,2 @@
+src[varchar(255)]
+user_id=User.id

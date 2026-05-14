@@ -26,8 +26,15 @@ class Connections {
                 break;
         }
 
-        $GLOBALS["os-agrandesr-tables::connections:$flagConnection"] = new PDO($dsn, $user, $pass);
-        $GLOBALS["os-agrandesr-tables::connections:$flagConnection"]->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ];
+        if ($type === 'mysql') {
+            $options[PDO::ATTR_EMULATE_PREPARES] = false;
+        }
+
+        $GLOBALS["os-agrandesr-tables::connections:$flagConnection"] = new PDO($dsn, $user, $pass, $options);
 
         return $GLOBALS["os-agrandesr-tables::connections:$flagConnection"];
     }
