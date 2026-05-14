@@ -2,6 +2,7 @@
     "name": "kiss-php/tables",
     "description": "Kiss ORM for php.",
     "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Kiss\\Tables\\": "src/"
